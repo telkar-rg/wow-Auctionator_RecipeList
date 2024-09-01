@@ -10,5 +10,4 @@
 ## X-Curse-Repository-ID: wow/auctionator-recipelist/mainline
 
 libs\Embeds.xml
-libs\LibTextbook.lua
 Auctionator_RecipeList.lua
