@@ -3,16 +3,12 @@
 ## Notes: Creates an Auctionator's shopping list with all recipes your alts need based on Altoholic data.
 ## Author: TAP3AH
 ## Version: 1
-## Dependencies: DataStore_Crafts, DataStore_Mails, DataStore_Containers, DataStore_Characters, Auctionator
-## X-Curse-Packaged-Version: r10
-## X-Curse-Project-Name: Auctionator_RecipeList
-## X-Curse-Project-ID: auctionator-recipelist
-## X-Curse-Repository-ID: wow/auctionator-recipelist/mainline
+## Dependencies: DataStore, DataStore_Crafts, DataStore_Mails, DataStore_Containers, DataStore_Characters, Auctionator
 ## X-Curse-Packaged-Version: r13
 ## X-Curse-Project-Name: Auctionator_RecipeList
 ## X-Curse-Project-ID: auctionator-recipelist
 ## X-Curse-Repository-ID: wow/auctionator-recipelist/mainline
 
-libs\LibStub.lua
+libs\Embeds.xml
 libs\LibTextbook.lua
 Auctionator_RecipeList.lua
