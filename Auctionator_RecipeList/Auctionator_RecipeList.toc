@@ -1,5 +1,5 @@
 ﻿## Interface: 30300
-## Title: Auctionator_RecipeList
+## Title: Auctionator: RecipeList
 ## Notes: Creates an Auctionator's shopping list with all recipes your alts need based on Altoholic data.
 ## Author: TAP3AH, Telkar (Rising-Gods)
 ## Version: 2.0

@@ -1,3 +1,5 @@
+local addonName, addonTable = ...
+
 local lib = LibStub:NewLibrary("MyLibrary-1.0", "$Revision: 5$")
 
 if not lib then
@@ -12,25 +14,18 @@ if not lib.frm then
   lib.frm = CreateFrame("Frame")
 end
 
-local run_once
-local LIST_NAME = "\124cFF20ffffTextbook:Recipes\124r"
-local itemClassRecipe = select(9, GetAuctionItemClasses() )
+local calledOnce
+local LIST_NAME = "\124cFF20ffffTextbook:RecipeList\124r"
 
-local function GetID(s,t) 	-- this is a SLOW lookup - avoid if possible!
-	local id
-	for k,v in pairs(t) do
-		if v==s then
-			id = k
-		end
-	end
-	return id
-end
+local addonTitle = GetAddOnMetadata(addonName, "Title")
+local addonVersion = GetAddOnMetadata(addonName, "Version")
+local FINISH_PREFIX = format("\124cFF30FF20<%s (%s)>\124r", addonTitle, addonVersion)
+local FINISH_MSG_UPDATE = format("\124cFFFFFF20%s:\124r %s", UPDATE, LIST_NAME)
+
+local itemClassRecipe = select(9, GetAuctionItemClasses() )
 
 lib.frm:RegisterEvent("AUCTION_HOUSE_SHOW")
 lib.frm:SetScript("OnEvent", function()
-	-- run only once per session due to weird behaviour of DataStore
-	-- if run_once then return end
-	-- run_once = true
 	
 	local CurrentRealm = GetRealmName()
 	local CurrentAccount = "Default"
@@ -38,8 +33,8 @@ lib.frm:SetScript("OnEvent", function()
 	
 	local neededRecipes = {}
 	
-	-- local CharNameList = DataStore:GetCharacters(CurrentRealm, CurrentAccount) 	-- get chars on this realm, default account only
 	local charName, charKey
+	-- get chars on this realm, default account only
 	for charName, charKey in pairs(DataStore:GetCharacters(CurrentRealm, CurrentAccount)) do
 		local professions
 		
@@ -133,7 +128,6 @@ lib.frm:SetScript("OnEvent", function()
 		end
 	end
 	
-	-- if true then return end
 	-- make a fresh list and fill it
 	local slist = Atr_SList.create(LIST_NAME.."1")
 	local i
@@ -175,5 +169,9 @@ lib.frm:SetScript("OnEvent", function()
 	if neededRecipes then wipe(neededRecipes) end
 	if tItemsUsed then wipe(tItemsUsed) end
 	
-	print("-- Fresh slist created")
+	if not calledOnce then
+		calledOnce = true
+		print(FINISH_PREFIX)
+	end
+	print(FINISH_MSG_UPDATE)
 end)
