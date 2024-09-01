@@ -1,8 +1,8 @@
 ﻿## Interface: 30300
 ## Title: Auctionator_RecipeList
 ## Notes: Creates an Auctionator's shopping list with all recipes your alts need based on Altoholic data.
-## Author: TAP3AH
-## Version: 1
+## Author: TAP3AH, Telkar (Rising-Gods)
+## Version: 2.0
 ## Dependencies: DataStore, DataStore_Crafts, DataStore_Mails, DataStore_Containers, DataStore_Characters, Auctionator
 ## X-Curse-Packaged-Version: r13
 ## X-Curse-Project-Name: Auctionator_RecipeList
