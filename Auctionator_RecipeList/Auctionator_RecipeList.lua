@@ -1,7 +1,6 @@
 local addonName, addonTable = ...
 
-local lib = LibStub:NewLibrary("MyLibrary-1.0", "$Revision: 5$")
-
+local lib = LibStub:NewLibrary(addonName, "$Revision: 5$")
 if not lib then
   return
 end
@@ -10,22 +9,82 @@ if not DataStore then
   return
 end
 
+local LTB = LibStub("LibTextbook-2.0")
+if not LTB then
+	print("MISSING LibTextbook-2.0")
+	return
+end
+
 if not lib.frm then
   lib.frm = CreateFrame("Frame")
 end
 
 local calledOnce
-local LIST_NAME = "\124cFF20ffffTextbook:RecipeList\124r"
+local LIST_NAME = "\124cFF20ff20Textbook:RecipeList\124r"
 
 local addonTitle = GetAddOnMetadata(addonName, "Title")
 local addonVersion = GetAddOnMetadata(addonName, "Version")
-local FINISH_PREFIX = format("\124cFF30FF20<%s (%s)>\124r", addonTitle, addonVersion)
-local FINISH_MSG_UPDATE = format("\124cFFFFFF20%s:\124r %s", UPDATE, LIST_NAME)
+local FINISH_PREFIX = format("\124cFF30FFFF<%s (%s)>\124r", addonTitle, addonVersion)
+local FINISH_MSG_UPDATE = format("\124cFFFFFF20%s:\124r %s", AtrL["New Shopping List"] or "New Shopping List", LIST_NAME)
 
 local itemClassRecipe = select(9, GetAuctionItemClasses() )
 
+
+local function checkBitInNum(numCheck, bitPos)
+	local bitBin = bit.lshift(1, bitPos)
+	
+	-- return true or nil
+	if bit.band(numCheck, bitBin) > 0 then
+		return true
+	end
+end
+
+local function getRecipes(tbl, profName, enClass, enRace, profSpecSpell)
+	if type(tbl) ~= "table" then return end
+	local db = {}
+	
+	local profId = LTB:getProfessionLocale2SkillId(profName)
+	if not profId then return end
+	local classBin = LTB:getClassBin(enClass)
+	if not classBin then return end
+	local raceBin = LTB:getRaceBin(enRace)
+	if not raceBin then return end
+	
+	local suc = LTB:getDbRaw(db)
+	if not suc then return end
+	
+	-- clear return table
+	for k,_ in pairs(tbl) do
+		tbl[k] = nil
+	end
+	
+	for itemId, entry in pairs(db) do
+		if (
+			entry["type"] == "RECIPE" and 		-- tradeskill recipes only
+			not entry["note"] and 				-- skip "fake" and "trainable"
+			entry["reqSkill"] == profId and 	-- selected profession only
+			entry["binding"] ~= 1 and 			-- skip BoP
+			(entry["quality"] > 1 or k == 10713 or k == 10644) and 	-- skip white ones (vendored) unless they are engineer created ones
+			(not entry["reqClasses"] or checkBitInNum(entry["reqClasses"], classBin) ) and 	-- check if Class Requirement
+			(not entry["reqRaces"]   or checkBitInNum(entry["reqRaces"],   raceBin) ) and 	-- check if Race Requirement
+			(not entry["reqSpell"]   or (entry["reqSpell"] == profSpecSpell) ) 				-- check if Known Spell Requirement
+		) then
+			-- add to learnable spells for this character
+			tbl[entry["teachesSpell"]] = itemId
+		end
+	end
+	
+	-- clear db table links
+	for k,v in pairs(db) do
+		db[k] = nil
+	end
+	return true
+end
+
 lib.frm:RegisterEvent("AUCTION_HOUSE_SHOW")
 lib.frm:SetScript("OnEvent", function()
+	-- for now: call only once per session
+	if calledOnce then return end
 	
 	local CurrentRealm = GetRealmName()
 	local CurrentAccount = "Default"
@@ -46,52 +105,34 @@ lib.frm:SetScript("OnEvent", function()
 				
 				local _, charEnglishClass = DataStore:GetCharacterClass(charKey)
 				local _, charEnglishRace =  DataStore:GetCharacterRace(charKey)
-				local charClassID = LibTextbookReference["englishClass_inv"][charEnglishClass] or 0
-				local charRaceID =  LibTextbookReference["englishRace_inv"][charEnglishRace] or 0
-				
-				-- get bit representation for class/race requirements
-				local charClassIdBinary = bit.lshift(1, charClassID)
-				local charRaceIdBinary =  bit.lshift(1, charRaceID)
 				
 				local profName, profData
 				for profName, profData in pairs(professions) do
 					local tsRecipes = {}
 					
-					-- check if profName is a localized profession-skill name
-					local profID = LibTextbookReference["skill_profession_inv"][profName]
-					if profID and profData and profData["NumCrafts"] and profData["NumCrafts"] > 0 then
+					if profData and profData["NumCrafts"] and profData["NumCrafts"] > 0 then
+						local spellId, itemId, suc
 						
 						-- get table of all learnable recipes
-						local k, entry
-						for k, entry in pairs(LibTextbookDB) do
-							if (
-								not entry["note"] and 				-- skip "fake" and "trainable"
-								entry["type"] == "RECIPE" and 		-- tradeskill recipes only
-								entry["reqSkill"] == profID and 	-- selected profession only
-								entry["binding"] ~= 1 and 			-- skip BoP
-								(entry["quality"] > 1 or k == 10713 or k == 10644) and 	-- skip white ones (vendored) unless they are engineer created ones
-								(not entry["reqClasses"] or (bit.band(entry["reqClasses"], charClassIdBinary) > 0) ) and 	-- check if Class Requirement
-								(not entry["reqRaces"]   or (bit.band(entry["reqRaces"],   charRaceIdBinary) > 0) ) and 	-- check if Race Requirement
-								(not entry["reqSpell"]   or DataStore:IsSpellKnown(charKey, entry["reqSpell"]) ) 					-- check if Known Spell Requirement
-							) then
-								-- check if this character alredy knows it
-								if not DataStore:IsCraftKnown( profData, entry["teachesSpell"]) then
-									-- add to learnable spells for this character
-									tsRecipes[entry["teachesSpell"]] = k
-								end
-							end
-						end -- END LOOP learnable recipes ****
+						suc = getRecipes(tsRecipes, profName, charEnglishClass, charEnglishRace, nil)
+						assert(suc, "Function 'getRecipes' failed.")
 						
-						-- ignore owned recipes of THIS character (bags/bank/mail)
-						local spellId, itemId
+						-- remove if recipe kown by this character
+						for spellId, itemId in pairs(tsRecipes) do
+							if DataStore:IsCraftKnown(profData, spellId) then
+								tsRecipes[spellId] = nil 	-- remove if known
+							end
+						end
+						
+						-- remove if THIS character owns recipe (bags/bank/mail)
 						for spellId, itemId in pairs(tsRecipes) do
 							local bagCount, bankCount = DataStore:GetContainerItemCount(charKey, itemId)
 							local mailCount = DataStore:GetMailItemCount(charKey, itemId)
 							
 							if bagCount>0 or bankCount>0 or mailCount>0 then
 								tsRecipes[spellId] = nil     -- remove if character owns the recipe
-							end -- END IF count > 0 ####
-						end -- END LOOP ignore owned recipes ****
+							end
+						end
 						
 						-- add to global list
 						for spellId, itemId in pairs(tsRecipes) do
@@ -100,7 +141,7 @@ lib.frm:SetScript("OnEvent", function()
 						
 						wipe(tsRecipes)     -- clean table
 						
-					end -- END IF profID ####
+					end -- END IF valid DS profData ####
 				end -- END LOOP professions ****
 				
 			end -- END IF professions ####
@@ -140,9 +181,9 @@ lib.frm:SetScript("OnEvent", function()
 	end
 	
 	local tItemsUsed = {}
-	local item, count
-	for item, count in pairs(neededRecipes) do
-		local itemName = LibTextbookDB[item]["itemName"]
+	local itemId, count
+	for itemId, count in pairs(neededRecipes) do
+		local itemName = LTB:getItemName(itemId)
 		
 		if not tItemsUsed[itemName] then 	-- avoid possible duplicates
 			tItemsUsed[itemName] = 1

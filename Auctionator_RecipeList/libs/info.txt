@@ -1,2 +1,2 @@
 LibStub
-LibTextbook
+LibTextbook-2.0
