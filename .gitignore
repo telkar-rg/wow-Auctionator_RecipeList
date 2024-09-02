@@ -1,5 +1,6 @@
 _Releases/*
 Git wow-Auctionator_RecipeList.lnk
+Auctionator_RecipeList/libs/*
 
 # Compiled Lua sources
 luac.out
