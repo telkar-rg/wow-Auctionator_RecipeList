@@ -25,7 +25,8 @@ local LIST_NAME = "\124cFF20ff20Textbook:RecipeList\124r"
 local addonTitle = GetAddOnMetadata(addonName, "Title")
 local addonVersion = GetAddOnMetadata(addonName, "Version")
 local FINISH_PREFIX = format("\124cFF30FFFF<%s (%s)>\124r", addonTitle, addonVersion)
-local FINISH_MSG_UPDATE = format("\124cFFFFFF20%s:\124r %s", AtrL["New Shopping List"] or "New Shopping List", LIST_NAME)
+local FINISH_MSG_NEW = format("\124cFFFFFF20%s:\124r %s", AtrL["New Shopping List"] or "New Shopping List", LIST_NAME)
+local FINISH_MSG_UPDATE = format("\124cFFFFFF20%s:\124r %s", UPDATE, LIST_NAME)
 
 local itemClassRecipe = select(9, GetAuctionItemClasses() )
 
@@ -81,14 +82,48 @@ local function getRecipes(tbl, profName, enClass, enRace, profSpecSpell)
 	return true
 end
 
+local function checkShoppingListExists(slNanme)
+	for i=1,#AUCTIONATOR_SHOPPING_LISTS do
+		if AUCTIONATOR_SHOPPING_LISTS[i]["name"]==slNanme then
+			return i
+		end
+	end
+end
+local function deleteShoppingList(slNanme)
+	-- delete all previous ShoppingLists with that name
+	local done = false
+	while not done do --delete all existing lists
+		local p = 0
+		local i
+		for i=1,#AUCTIONATOR_SHOPPING_LISTS do
+			if AUCTIONATOR_SHOPPING_LISTS[i]["name"]==slNanme then
+				p = i
+				break;
+			end
+		end
+		if p > 0 then
+			-- wipe( AUCTIONATOR_SHOPPING_LISTS[p]["items"] )
+			table.remove(AUCTIONATOR_SHOPPING_LISTS,p)
+		else
+			done = true
+		end
+	end
+end
+
+
 lib.frm:RegisterEvent("AUCTION_HOUSE_SHOW")
 lib.frm:SetScript("OnEvent", function()
-	-- for now: call only once per session
-	if calledOnce then return end
+	-- call on first AUCTION_HOUSE_SHOW and after that only if LIST_NAME is missing
+	local exists = checkShoppingListExists(LIST_NAME)
+	if exists and calledOnce then return end
 	
 	local CurrentRealm = GetRealmName()
 	local CurrentAccount = "Default"
 	local CurrentFaction = UnitFactionGroup("player")
+	local msg_out = FINISH_MSG_NEW
+	if exists then
+		msg_out = FINISH_MSG_UPDATE
+	end
 	
 	local neededRecipes = {}
 	
@@ -146,39 +181,23 @@ lib.frm:SetScript("OnEvent", function()
 				
 			end -- END IF professions ####
 		end -- END IF same faction ####
-	end -- END LOOP CharNameList ****
+	end -- END LOOP DataStore:GetCharacters ****
 	
 	-- ****************************************************************
 	
-	-- delete all previous ShoppingLists with that name
-	local done = false
-	while not done do --delete all existing lists
-		local p = 0
-		local i
-		for i=1,#AUCTIONATOR_SHOPPING_LISTS do
-			if AUCTIONATOR_SHOPPING_LISTS[i]["name"]==LIST_NAME then
-				p = i
-				break;
-			end
-		end
-		if p > 0 then
-			-- wipe( AUCTIONATOR_SHOPPING_LISTS[p]["items"] )
-			table.remove(AUCTIONATOR_SHOPPING_LISTS,p)
-		else
-			done = true
-		end
-	end
+	deleteShoppingList(LIST_NAME)
 	
 	-- make a fresh list and fill it
-	local slist = Atr_SList.create(LIST_NAME.."1")
-	local i
-	for i=1,#AUCTIONATOR_SHOPPING_LISTS do
-		if AUCTIONATOR_SHOPPING_LISTS[i]["name"]==LIST_NAME.."1" then
-			AUCTIONATOR_SHOPPING_LISTS[i]["name"] = LIST_NAME
-			-- wipe(AUCTIONATOR_SHOPPING_LISTS[i]["items"])
-			break;
-		end
-	end
+	local slist = Atr_SList.create(LIST_NAME)
+	-- local slist = Atr_SList.create(LIST_NAME.."1")
+	-- local i
+	-- for i=1,#AUCTIONATOR_SHOPPING_LISTS do
+		-- if AUCTIONATOR_SHOPPING_LISTS[i]["name"]==LIST_NAME.."1" then
+			-- AUCTIONATOR_SHOPPING_LISTS[i]["name"] = LIST_NAME
+			-- -- wipe(AUCTIONATOR_SHOPPING_LISTS[i]["items"])
+			-- break;
+		-- end
+	-- end
 	
 	local tItemsUsed = {}
 	local itemId, count
@@ -214,5 +233,5 @@ lib.frm:SetScript("OnEvent", function()
 		calledOnce = true
 		print(FINISH_PREFIX)
 	end
-	print(FINISH_MSG_UPDATE)
+	print(msg_out)
 end)
